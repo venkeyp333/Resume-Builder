@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { registerUser } from './api.js';  // Import the register function
+import { registerUser } from './api.js';
 
 function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState(''); // New state for role
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -14,7 +15,7 @@ function Register() {
     setSuccess('');
 
     try {
-      const data = await registerUser(username, email, password);
+      const data = await registerUser(username, email, password, role); // Include role
       setSuccess(data.message);
     } catch (err) {
       setError(err.message);
@@ -64,6 +65,24 @@ function Register() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+
+          {/* New Roles field */}
+          <div className="form-group mb-3">
+            <label htmlFor="role">Role</label>
+            <select
+              id="role"
+              className="form-control"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              required
+            >
+              <option value="">Select a role</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+              <option value="guest">Guest</option>
+              {/* Add more roles as needed */}
+            </select>
           </div>
 
           <button type="submit" className="btn btn-primary w-100 mb-3">Register</button>

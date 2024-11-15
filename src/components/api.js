@@ -3,12 +3,13 @@ import axios from 'axios';
 const API_URL = 'http://127.0.0.1:5000'; // The URL of your Flask server
 
 // Function to handle registration
-export const registerUser = async (username, email, password) => {
+export const registerUser = async (username, email, password,roles) => {
   try {
     const response = await axios.post(`${API_URL}/register`, {
       username,
       email,
-      password
+      password,
+      roles
     });
     return response.data;
   } catch (error) {

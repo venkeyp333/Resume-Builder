@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
-
-function Profile() {
-  const [userid, setUserid] = useState("");
-  const initialFormData = {
-    user_id: userid,
+import { FaUser, FaPhoneAlt, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaCode, FaLinkedin, FaGithub, FaEdit } from 'react-icons/fa'; // Icons from react-icons
+// import { Toast } from "bootstrap";
+import toast, { Toaster } from 'react-hot-toast'; 
+const UserProfileForm = () => {
+  const [formData, setFormData] = useState({
+    user_id: "",
     full_name: "",
     phone_number: "",
     address: "",
@@ -14,135 +14,283 @@ function Profile() {
     skills: "",
     linkedin_profile: "",
     github_profile: "",
-  };
+    profile_image: null, // file input for profile image
+  });
+  const [profileImagePreview, setProfileImagePreview] = useState(null);
+  const [isEditingImage, setIsEditingImage] = useState(false); // Flag to toggle image edit mode
+  const [userid, setUserid] = useState("");
 
-  const [formData, setFormData] = useState(initialFormData);
-
+  // Fetch the user details and populate the form
   useEffect(() => {
-    // Retrieve the user details from localStorage and set the user ID
     getUserDetails();
   }, []);
-
-  useEffect(() => {
-    // Fetch profile data only after user ID is set
-    if (userid) {
-      fetchProfile();
-    }
-  }, [userid]);
 
   const getUserDetails = () => {
     const userdata = localStorage.getItem("user");
     if (userdata) {
       const parsedUserData = JSON.parse(userdata);
-      console.log("Parsed userdata:", parsedUserData);
-      console.log("User ID:", parsedUserData.id);
       setUserid(parsedUserData.id);
-      setFormData((prevData) => ({
-        ...prevData,
-        user_id: parsedUserData.id,
-      }));
-    } else {
-      console.log("No user data found in localStorage.");
+      fetchProfile(parsedUserData.id);
     }
   };
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (id) => {
     try {
-      const response = await axios.get(
-        `http://127.0.0.1:5000/get_profile/${userid}`
-      );
-      if (response.data) {
+      const response = await axios.get(`http://127.0.0.1:5000/get_profile/${id}`);
+      if (response.status === 200) {
         setFormData(response.data);
+        // Handle profile image preview if it exists
+        if (response.data.profile_image) {
+          setProfileImagePreview(`data:image/jpeg;base64,${response.data.profile_image}`);
+        }
+      } else if (response.status === 404) {
+        toast.error("User data not found");
       }
     } catch (error) {
       toast.error("Failed to fetch profile data. Please try again.");
     }
   };
 
+  // Handle form field changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:5000/save_profile",
-        formData
-      );
-      if (response.status === 200) {
-        toast.success("Profile saved successfully!");
-      } else {
-        toast.error("Unexpected response from server.");
+    const { name, value, type, files } = e.target;
+    if (type === "file") {
+      setFormData({
+        ...formData,
+        [name]: files[0], // set the first file from the file input
+      });
+      const file = files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProfileImagePreview(reader.result); // Preview the image
+        };
+        reader.readAsDataURL(file);
       }
-    } catch (error) {
-      toast.error("Failed to save profile. Please try again.");
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
     }
   };
 
-  const fields = [
-    { id: "user_id", label: "User ID", type: "text", disabled: true },
-    { id: "full_name", label: "Full Name", type: "text" },
-    { id: "phone_number", label: "Phone Number", type: "text" },
-    { id: "address", label: "Address", type: "textarea" },
-    { id: "education", label: "Education", type: "textarea" },
-    { id: "work_experience", label: "Work Experience", type: "textarea" },
-    { id: "skills", label: "Skills", type: "text" },
-    { id: "linkedin_profile", label: "LinkedIn Profile", type: "text" },
-    { id: "github_profile", label: "GitHub Profile", type: "text" },
-  ];
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+  
+    const { user_id, full_name, education, work_experience } = formData;
+  
+    // Validation for required fields
+    if (!user_id || !full_name || !education || !work_experience) {
+      toast.error("User ID, Full Name, Education, and Work Experience are required");
+      return;
+    }
+  
+    const form = new FormData();
+    form.append("user_id", user_id);
+    form.append("full_name", full_name);
+    form.append("phone_number", formData.phone_number);
+    form.append("address", formData.address);
+    form.append("education", education);
+    form.append("work_experience", work_experience);
+    form.append("skills", formData.skills);
+    form.append("linkedin_profile", formData.linkedin_profile);
+    form.append("github_profile", formData.github_profile);
+  
+    // Only append the profile image if the user is editing it
+    if (isEditingImage && formData.profile_image) {
+      form.append("profile_image", formData.profile_image); // append file data if present
+    }
+  
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/save_profile", form, {
+        headers: {
+          "Content-Type": "multipart/form-data", // important for file upload
+        },
+      });
+  
+      // Log the response to check its content
+      console.log("API Response:", response);
+  
+      if (response.status === 200 || response.status === 201) {
+        toast.success(response.data.message);  // Hot Toast success notification
+      } else {
+        toast.error("Failed to save or update profile");  // Hot Toast error notification
+      }
+    } catch (error) {
+      console.error("Error:", error.response?.data || error);
+      toast.error("Failed to save or update profile");
+    }
+  };
+  
+  
+
+  // Toggle the edit profile image mode
+  const handleImageEditToggle = () => {
+    setIsEditingImage(!isEditingImage); // Toggle between edit and view mode
+  };
 
   return (
-    <div className="container p-5 mt-5 border border-primary rounded shadow-lg bg-light">
-      <Toaster position="top-center" reverseOrder={false} />
-      <h2 className="text-center text-primary font-weight-bold mb-4">
-        Profile Form
-      </h2>
-
-      <form onSubmit={handleSubmit} className="bg-white p-4 rounded">
-        {fields.map((field) => (
-          <div key={field.id} className="form-group">
-            <label
-              htmlFor={field.id}
-              className="text-secondary font-weight-bold"
-            >
-              {field.label}
-            </label>
-            {field.type === "textarea" ? (
-              <textarea
-                id={field.id}
-                name={field.id}
-                className="form-control border border-info rounded"
-                value={formData[field.id]}
-                onChange={handleChange}
-                required={!field.disabled}
-                disabled={field.disabled}
-              />
-            ) : (
-              <input
-                type={field.type}
-                id={field.id}
-                name={field.id}
-                className="form-control border border-info rounded"
-                value={formData[field.id]}
-                onChange={handleChange}
-                required={!field.disabled}
-                disabled={field.disabled}
-              />
-            )}
+    <div className="container py-5">
+      <div className="row justify-content-center">
+        <div className="col-md-8 col-lg-6">
+          <div className="card shadow-lg">
+            <div className="card-body">
+              <div className="text-center mb-4">
+                {/* Profile Image with Edit Icon */}
+                <div className="position-relative">
+                  <img
+                    src={profileImagePreview || "https://via.placeholder.com/150"}
+                    alt="Profile"
+                    className="rounded-circle border border-5 border-primary"
+                    width="150"
+                    height="150"
+                  />
+                  {/* Edit Icon */}
+                  {!isEditingImage && (
+                    <button
+                      className="position-absolute top-0 end-0 btn btn-light btn-sm rounded-circle"
+                      onClick={handleImageEditToggle}
+                      style={{ zIndex: 1 }}
+                    >
+                      <FaEdit />
+                    </button>
+                  )}
+                </div>
+                {/* File input for editing image */}
+                {isEditingImage && (
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      className="form-control"
+                      name="profile_image"
+                      onChange={handleChange}
+                      accept="image/*"
+                    />
+                  </div>
+                )}
+              </div>
+              <form onSubmit={handleSubmit} encType="multipart/form-data">
+                <div className="mb-3">
+                  <label className="form-label">Full Name</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaUser /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="full_name"
+                      value={formData.full_name}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Phone Number</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaPhoneAlt /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Address</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaMapMarkerAlt /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Education</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaGraduationCap /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="education"
+                      value={formData.education}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Work Experience</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaBriefcase /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="work_experience"
+                      value={formData.work_experience}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Skills</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaCode /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="skills"
+                      value={formData.skills}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">LinkedIn Profile</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaLinkedin /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="linkedin_profile"
+                      value={formData.linkedin_profile}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">GitHub Profile</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><FaGithub /></span>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="github_profile"
+                      value={formData.github_profile}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <button type="submit" className="btn btn-primary">
+                    Save Profile
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        ))}
-
-        <button
-          type="submit"
-          className="btn btn-primary btn-block font-weight-bold shadow-sm"
-        >
-          Save Profile
-        </button>
-      </form>
+        </div>
+      </div>
     </div>
   );
-}
+};
 
-export default Profile;
+export default UserProfileForm;
