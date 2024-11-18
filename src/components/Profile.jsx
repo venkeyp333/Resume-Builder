@@ -79,16 +79,19 @@ const UserProfileForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
   
-    const { user_id, full_name, education, work_experience } = formData;
+    console.log("formData");
+    console.log(formData);
+  
+    const { full_name, education, work_experience } = formData;
   
     // Validation for required fields
-    if (!user_id || !full_name || !education || !work_experience) {
+    if (!userid || !full_name || !education || !work_experience) {
       toast.error("User ID, Full Name, Education, and Work Experience are required");
       return;
     }
   
     const form = new FormData();
-    form.append("user_id", user_id);
+    form.append("user_id", userid); // use userid state
     form.append("full_name", full_name);
     form.append("phone_number", formData.phone_number);
     form.append("address", formData.address);
@@ -123,6 +126,7 @@ const UserProfileForm = () => {
       toast.error("Failed to save or update profile");
     }
   };
+  
   
   
 
